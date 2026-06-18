@@ -223,6 +223,7 @@ jobs:
               NAME=$(basename "$file")
               echo "Uploading $NAME..."
               gh api --method POST \
+                --hostname uploads.github.com \
                 -H "Content-Type: application/octet-stream" \
                 "/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
                 --input "$file"
@@ -231,6 +232,7 @@ jobs:
           if [ -f "dist/${{ env.ARTIFACT }}.tar.gz.sig" ]; then
             NAME="${{ env.ARTIFACT }}.tar.gz.sig"
             gh api --method POST \
+              --hostname uploads.github.com \
               -H "Content-Type: application/octet-stream" \
               "/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
               --input "dist/$NAME"
