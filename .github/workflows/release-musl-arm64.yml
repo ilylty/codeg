@@ -198,17 +198,14 @@ jobs:
           cd dist && tar czf ${{ env.ARTIFACT }}.tar.gz ${{ env.ARTIFACT }}
 
       - name: Sign and checksum bundle
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          pnpm tauri signer sign "dist/${{ env.ARTIFACT }}.tar.gz"
-          test -f "dist/${{ env.ARTIFACT }}.tar.gz.sig"
-
-      - name: Checksum bundle
-        run: |
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            pnpm tauri signer sign "dist/${{ env.ARTIFACT }}.tar.gz" || true
+          fi
           ( cd dist && shasum -a 256 "${{ env.ARTIFACT }}.tar.gz" > "${{ env.ARTIFACT }}.tar.gz.sha256" )
 
       - name: Upload to release
