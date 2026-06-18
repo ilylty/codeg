@@ -96,10 +96,13 @@ jobs:
               });
 
               if (!existing.data.draft) {
-                core.setFailed(
-                  `Release for tag ${tag} already exists and is not a draft.`,
-                );
-                return;
+                core.info(`Deleting existing non-draft release #${existing.data.id}`);
+                await github.rest.repos.deleteRelease({
+                  owner,
+                  repo,
+                  release_id: existing.data.id,
+                });
+                throw { status: 404 };
               }
 
               release = existing.data;
@@ -214,17 +217,24 @@ jobs:
         run: |
           set -ex
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          ls -la dist/
-          gh release upload "$TAG" \
-            "dist/${{ env.ARTIFACT }}.tar.gz" \
-            "dist/${{ env.ARTIFACT }}.tar.gz.sha256" \
-            --repo "${{ github.repository }}" \
-            --clobber
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/$TAG --jq .id)
+          echo "Release ID: $RELEASE_ID"
+          for file in dist/${{ env.ARTIFACT }}.tar.gz dist/${{ env.ARTIFACT }}.tar.gz.sha256; do
+            if [ -f "$file" ]; then
+              NAME=$(basename "$file")
+              echo "Uploading $NAME..."
+              gh api --method POST \
+                -H "Content-Type: application/octet-stream" \
+                "repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
+                --input "$file"
+            fi
+          done
           if [ -f "dist/${{ env.ARTIFACT }}.tar.gz.sig" ]; then
-            gh release upload "$TAG" \
-              "dist/${{ env.ARTIFACT }}.tar.gz.sig" \
-              --repo "${{ github.repository }}" \
-              --clobber
+            NAME="${{ env.ARTIFACT }}.tar.gz.sig"
+            gh api --method POST \
+              -H "Content-Type: application/octet-stream" \
+              "repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
+              --input "dist/$NAME"
           fi
 
   publish-release:
