@@ -216,8 +216,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -ex
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/$TAG --jq .id)
+          RELEASE_ID="${{ needs.create-draft-release.outputs.release_id }}"
           echo "Release ID: $RELEASE_ID"
           for file in dist/${{ env.ARTIFACT }}.tar.gz dist/${{ env.ARTIFACT }}.tar.gz.sha256; do
             if [ -f "$file" ]; then
@@ -225,7 +224,7 @@ jobs:
               echo "Uploading $NAME..."
               gh api --method POST \
                 -H "Content-Type: application/octet-stream" \
-                "repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
+                "/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
                 --input "$file"
             fi
           done
@@ -233,7 +232,7 @@ jobs:
             NAME="${{ env.ARTIFACT }}.tar.gz.sig"
             gh api --method POST \
               -H "Content-Type: application/octet-stream" \
-              "repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
+              "/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$NAME" \
               --input "dist/$NAME"
           fi
 
