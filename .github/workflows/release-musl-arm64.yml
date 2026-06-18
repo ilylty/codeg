@@ -212,12 +212,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -ex
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          FILES="dist/${{ env.ARTIFACT }}.tar.gz dist/${{ env.ARTIFACT }}.tar.gz.sha256"
+          ls -la dist/
+          gh release upload "$TAG" \
+            "dist/${{ env.ARTIFACT }}.tar.gz" \
+            "dist/${{ env.ARTIFACT }}.tar.gz.sha256" \
+            --repo "${{ github.repository }}" \
+            --clobber
           if [ -f "dist/${{ env.ARTIFACT }}.tar.gz.sig" ]; then
-            FILES="$FILES dist/${{ env.ARTIFACT }}.tar.gz.sig"
+            gh release upload "$TAG" \
+              "dist/${{ env.ARTIFACT }}.tar.gz.sig" \
+              --repo "${{ github.repository }}" \
+              --clobber
           fi
-          gh release upload "$TAG" $FILES --clobber
 
   publish-release:
     needs:
