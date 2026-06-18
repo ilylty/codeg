@@ -198,6 +198,7 @@ jobs:
           cd dist && tar czf ${{ env.ARTIFACT }}.tar.gz ${{ env.ARTIFACT }}
 
       - name: Sign and checksum bundle
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -205,6 +206,9 @@ jobs:
           set -euo pipefail
           pnpm tauri signer sign "dist/${{ env.ARTIFACT }}.tar.gz"
           test -f "dist/${{ env.ARTIFACT }}.tar.gz.sig"
+
+      - name: Checksum bundle
+        run: |
           ( cd dist && shasum -a 256 "${{ env.ARTIFACT }}.tar.gz" > "${{ env.ARTIFACT }}.tar.gz.sha256" )
 
       - name: Upload to release
@@ -212,11 +216,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          gh release upload "$TAG" \
-            "dist/${{ env.ARTIFACT }}.tar.gz" \
-            "dist/${{ env.ARTIFACT }}.tar.gz.sig" \
-            "dist/${{ env.ARTIFACT }}.tar.gz.sha256" \
-            --clobber
+          FILES="dist/${{ env.ARTIFACT }}.tar.gz dist/${{ env.ARTIFACT }}.tar.gz.sha256"
+          if [ -f "dist/${{ env.ARTIFACT }}.tar.gz.sig" ]; then
+            FILES="$FILES dist/${{ env.ARTIFACT }}.tar.gz.sig"
+          fi
+          gh release upload "$TAG" $FILES --clobber
 
   publish-release:
     needs:
