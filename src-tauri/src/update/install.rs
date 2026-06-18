@@ -811,7 +811,23 @@ fn exchange_dirs(a: &Path, b: &Path) -> std::io::Result<()> {
         // SAFETY: both pointers are valid NUL-terminated C strings that outlive
         // the call; the kernel only reads them.
         let ret = unsafe {
-            #[cfg(target_os = "linux")]
+            #[cfg(all(target_os = "linux", target_env = "musl"))]
+            {
+                #[cfg(target_arch = "x86_64")]
+                const SYS_RENAMEAT2: libc::c_long = 316;
+                #[cfg(target_arch = "aarch64")]
+                const SYS_RENAMEAT2: libc::c_long = 276;
+                const RENAME_EXCHANGE: libc::c_int = 2;
+                libc::syscall(
+                    SYS_RENAMEAT2,
+                    libc::AT_FDCWD as libc::c_long,
+                    ca.as_ptr() as libc::c_long,
+                    libc::AT_FDCWD as libc::c_long,
+                    cb.as_ptr() as libc::c_long,
+                    RENAME_EXCHANGE as libc::c_long,
+                ) as libc::c_int
+            }
+            #[cfg(all(target_os = "linux", not(target_env = "musl")))]
             {
                 libc::renameat2(
                     libc::AT_FDCWD,
